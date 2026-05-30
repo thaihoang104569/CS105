@@ -162,3 +162,30 @@ body {
   height: 2px;
   transform: translateY(-50%);
 }
+
+#textureFileInput {
+  max-width: 60%;
+  background: #0d1528;
+  border: 1px solid rgba(108, 225, 255, 0.25);
+  color: var(--text);
+  padding: 2px 4px;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 0.75rem;
+}
+
+#loadingStatus {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(10, 18, 32, 0.85);
+  border: 1px solid rgba(56, 249, 215, 0.5);
+  color: var(--accent);
+  font-family: "Share Tech Mono", monospace;
+  font-size: 0.85rem;
+  padding: 8px 20px;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+  white-space: nowrap;
+  display: none;
+}

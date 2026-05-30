@@ -19,6 +19,10 @@
           </select>
         </div>
         <div class="row">
+          <label for="textureFileInput">Custom Image</label>
+          <input id="textureFileInput" type="file" accept="image/*" />
+        </div>
+        <div class="row">
           <span class="label">Camera</span>
           <span class="hint">Press 1 (Panoramic) or 2 (Third-Person)</span>
         </div>
@@ -75,11 +79,14 @@
     </div>
     <canvas id="scene"></canvas>
     <div id="crosshair" aria-hidden="true"></div>
+    <div id="loadingStatus"></div>
 
     <script type="importmap">
       {
         "imports": {
-          "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+          "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+          "fflate": "https://unpkg.com/fflate@0.8.2/esm/browser.js"
         }
       }
     </script>

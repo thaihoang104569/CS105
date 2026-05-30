@@ -49,6 +49,7 @@ const gameplay = createGameplay({
 
 const ui = {
   textureSelect: document.getElementById("textureSelect"),
+  textureFileInput: document.getElementById("textureFileInput"),
   camX: document.getElementById("camX"),
   camY: document.getElementById("camY"),
   camZ: document.getElementById("camZ"),
@@ -81,6 +82,23 @@ function readCameraUI() {
 
 ui.textureSelect.addEventListener("change", (event) => {
   environment.setFloorTexture(event.target.value);
+});
+
+ui.textureFileInput.addEventListener("change", (event) => {
+  const file = event.target.files[0];
+  if (file) {
+    const objectUrl = URL.createObjectURL(file);
+    const loader = new THREE.TextureLoader();
+    loader.load(objectUrl, (texture) => {
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      texture.repeat.set(16, 16);
+      texture.anisotropy = 8;
+      
+      environment.ground.material.map = texture;
+      environment.ground.material.needsUpdate = true;
+    });
+  }
 });
 
 [ui.camX, ui.camY, ui.camZ, ui.camNear, ui.camFar].forEach((input) => {

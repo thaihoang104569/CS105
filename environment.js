@@ -226,6 +226,9 @@ export function createEnvironment(scene) {
     velocities
   });
 
+  // Ground Objects: static crates + moving patrol robots
+  createGroundObjects(scene, animated);
+
   return {
     ground,
     targets,
@@ -391,7 +394,148 @@ function updateEnvironment(animated, delta, elapsed) {
       }
       posAttr.needsUpdate = true;
     }
+    if (item.type === "patrol") {
+      item.t += item.speed * delta;
+      const progress = (Math.sin(item.t) + 1) / 2; // 0..1 oscillate
+      item.group.position.lerpVectors(item.from, item.to, progress);
+      // Spin the robot body slowly
+      item.group.rotation.y += delta * 1.2;
+    }
   });
+}
+
+function createGroundObjects(scene, animated) {
+  // --- Static Sci-Fi Crates ---
+  const crateMat = new THREE.MeshStandardMaterial({ color: 0x3a5068, metalness: 0.7, roughness: 0.3 });
+  const crateEdgeMat = new THREE.MeshStandardMaterial({ color: 0x7fc8f8, emissive: 0x3a9ed8, emissiveIntensity: 0.6, metalness: 0.9, roughness: 0.1 });
+
+  const cratePositions = [
+    [-30, 0, -15], [30, 0, -15], [-30, 0, 15], [30, 0, 15],
+    [0, 0, -50], [50, 0, 0], [-50, 0, 0], [0, 0, 50],
+    [-70, 0, 40], [70, 0, -40], [40, 0, -70], [-40, 0, 70],
+    [20, 0, 30], [-20, 0, -30], [60, 0, 60], [-60, 0, -60],
+  ];
+
+  cratePositions.forEach(([cx, cy, cz]) => {
+    const size = 3 + Math.random() * 2.5;
+    const height = 2 + Math.random() * 3;
+    const crate = new THREE.Mesh(new THREE.BoxGeometry(size, height, size), crateMat);
+    crate.position.set(cx, height / 2, cz);
+    crate.rotation.y = Math.random() * Math.PI * 2;
+    crate.castShadow = true;
+    crate.receiveShadow = true;
+    scene.add(crate);
+
+    // Edge trim strips
+    const edgeGeo = new THREE.BoxGeometry(size + 0.15, 0.3, size + 0.15);
+    const edge = new THREE.Mesh(edgeGeo, crateEdgeMat);
+    edge.position.set(cx, height, cz);
+    edge.rotation.y = crate.rotation.y;
+    scene.add(edge);
+
+    const edgeBase = new THREE.Mesh(edgeGeo, crateEdgeMat);
+    edgeBase.position.set(cx, 0.15, cz);
+    edgeBase.rotation.y = crate.rotation.y;
+    scene.add(edgeBase);
+  });
+
+  // --- Static Cylindrical Pillars / Barrels ---
+  const barrelMat = new THREE.MeshStandardMaterial({ color: 0x4d3a1c, metalness: 0.4, roughness: 0.6 });
+  const barrelBandMat = new THREE.MeshStandardMaterial({ color: 0xd4a020, emissive: 0x7a5800, emissiveIntensity: 0.4, metalness: 0.8, roughness: 0.2 });
+
+  const barrelPositions = [
+    [-18, 0, 10], [18, 0, -10], [-10, 0, -20], [10, 0, 20],
+    [40, 0, 25], [-40, 0, -25], [-25, 0, 45], [25, 0, -45],
+  ];
+
+  barrelPositions.forEach(([bx, by, bz]) => {
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.4, 3.5, 16), barrelMat);
+    barrel.position.set(bx, 1.75, bz);
+    barrel.castShadow = true;
+    barrel.receiveShadow = true;
+    scene.add(barrel);
+
+    // Band rings
+    [0.6, 2.0, 3.2].forEach((bandY) => {
+      const band = new THREE.Mesh(new THREE.TorusGeometry(1.32, 0.12, 8, 24), barrelBandMat);
+      band.position.set(bx, bandY, bz);
+      band.rotation.x = Math.PI / 2;
+      scene.add(band);
+    });
+  });
+
+  // --- Moving Patrol Robots ---
+  const patrolPaths = [
+    { from: new THREE.Vector3(-80, 0, -80), to: new THREE.Vector3(80, 0, -80), speed: 0.6 },
+    { from: new THREE.Vector3(80, 0, 80),   to: new THREE.Vector3(-80, 0, 80),  speed: 0.5 },
+    { from: new THREE.Vector3(-90, 0, 0),   to: new THREE.Vector3(90, 0, 0),   speed: 0.8 },
+    { from: new THREE.Vector3(0, 0, -90),   to: new THREE.Vector3(0, 0, 90),   speed: 0.7 },
+    { from: new THREE.Vector3(-60, 0, 60),  to: new THREE.Vector3(60, 0, -60), speed: 0.55 },
+  ];
+
+  patrolPaths.forEach((path, i) => {
+    const robot = createPatrolRobot(i);
+    robot.group.position.copy(path.from);
+    scene.add(robot.group);
+    animated.push({
+      type: "patrol",
+      group: robot.group,
+      from: path.from,
+      to: path.to,
+      speed: path.speed,
+      t: i * Math.PI, // stagger start positions
+    });
+  });
+}
+
+function createPatrolRobot(index) {
+  const group = new THREE.Group();
+  const colors = [0xff6b35, 0x35d4ff, 0xffd700, 0x7dff6b, 0xff35a0];
+  const color = colors[index % colors.length];
+
+  // Body (flattened disc)
+  const bodyGeo = new THREE.CylinderGeometry(1.6, 1.8, 0.7, 12);
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x222e3c, metalness: 0.8, roughness: 0.2 });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.position.y = 0.6;
+  body.castShadow = true;
+  group.add(body);
+
+  // Glowing ring
+  const ringGeo = new THREE.TorusGeometry(1.7, 0.18, 8, 32);
+  const ringMat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.5, metalness: 0.6, roughness: 0.1 });
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.position.y = 0.65;
+  ring.rotation.x = Math.PI / 2;
+  group.add(ring);
+
+  // Dome on top
+  const domeGeo = new THREE.SphereGeometry(0.9, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+  const domeMat = new THREE.MeshStandardMaterial({ color: 0x334455, metalness: 0.6, roughness: 0.3 });
+  const dome = new THREE.Mesh(domeGeo, domeMat);
+  dome.position.y = 1.0;
+  dome.castShadow = true;
+  group.add(dome);
+
+  // Eye sensor
+  const eyeGeo = new THREE.SphereGeometry(0.22, 8, 8);
+  const eyeMat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 3.0 });
+  const eye = new THREE.Mesh(eyeGeo, eyeMat);
+  eye.position.set(0, 1.6, -0.7);
+  group.add(eye);
+
+  // Wheels (4 small spheres around base)
+  for (let w = 0; w < 4; w++) {
+    const angle = (w / 4) * Math.PI * 2;
+    const wheelGeo = new THREE.SphereGeometry(0.35, 8, 6);
+    const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.5, roughness: 0.8 });
+    const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+    wheel.position.set(Math.cos(angle) * 1.5, 0.2, Math.sin(angle) * 1.5);
+    wheel.castShadow = true;
+    group.add(wheel);
+  }
+
+  return { group };
 }
 
 function createFloorTextures(loader) {

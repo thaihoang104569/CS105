@@ -1,4 +1,13 @@
 import * as THREE from "three";
+import { FBXLoader } from "three/addons/loaders/FBXLoader.js";
+
+const loadingStatusEl = document.getElementById("loadingStatus");
+
+function showStatus(msg) {
+  if (!loadingStatusEl) return;
+  loadingStatusEl.textContent = msg;
+  loadingStatusEl.style.display = msg ? "block" : "none";
+}
 
 export function createPlayer(scene) {
   const group = new THREE.Group();
@@ -7,6 +16,7 @@ export function createPlayer(scene) {
   const headMaterial = new THREE.MeshStandardMaterial({ color: 0xa0d6ff, metalness: 0.2, roughness: 0.5 });
   const gunMaterial = new THREE.MeshStandardMaterial({ color: 0x2f3542, metalness: 0.6, roughness: 0.2 });
 
+  // Fallback primitive shapes — visible while model loads
   const torso = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.5, 3.2, 16), bodyMaterial);
   torso.position.y = 2.2;
   torso.castShadow = true;
@@ -27,11 +37,68 @@ export function createPlayer(scene) {
   gunTip.position.set(3.8, 2.6, 1.2);
   group.add(gunTip);
 
+  // ---- Load 3D FBX Character Model ----
+  const manager = new THREE.LoadingManager();
+
+  manager.onStart = () => {
+    showStatus("⏳ Loading character model...");
+  };
+  manager.onProgress = (url, loaded, total) => {
+    const pct = Math.round((loaded / total) * 100);
+    showStatus(`⏳ Loading character model... ${pct}%`);
+  };
+  manager.onLoad = () => {
+    showStatus("");
+  };
+  manager.onError = (url) => {
+    showStatus(`⚠ Failed to load: ${url}`);
+    setTimeout(() => showStatus(""), 5000);
+  };
+
+  const fbxLoader = new FBXLoader(manager);
+  fbxLoader.load(
+    "assets/models/Ch49_nonPBR.fbx",
+    (fbx) => {
+      // Scale: FBX is in cm, game units are metres-ish. 
+      // 170cm character → scale 0.028 ≈ 4.8 units tall (fits well in scene).
+      fbx.scale.setScalar(0.028);
+      fbx.position.set(0, 0, 0);
+      fbx.rotation.y = Math.PI; // face camera-forward direction
+
+      fbx.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+          // Improve material quality
+          if (child.material) {
+            const mats = Array.isArray(child.material) ? child.material : [child.material];
+            mats.forEach((m) => {
+              m.metalness = 0.1;
+              m.roughness = 0.7;
+            });
+          }
+        }
+      });
+
+      group.add(fbx);
+
+      // Hide fallback primitives now that the model is loaded
+      torso.visible = false;
+      head.visible = false;
+      gun.visible = false;
+
+      // Reposition gunTip to align with weapon in the right hand of the FBX rig.
+      // FBX scale 0.028: weapon barrel tip sits roughly at local (0.6, 3.5, -3.0)
+      gunTip.position.set(0.6, 3.5, -3.0);
+    }
+  );
+
   group.position.set(0, 0, 30);
   scene.add(group);
 
   return { group, gunTip };
 }
+
 
 export function createGameplay({ scene, player, targets, onScore, muzzleLight }) {
   const bullets = [];
