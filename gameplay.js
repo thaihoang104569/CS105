@@ -37,15 +37,113 @@ export function createPlayer(scene) {
   gunTip.position.set(3.8, 2.6, 1.2);
   group.add(gunTip);
 
-  // ---- Load 3D FBX Character Model ----
+  const player = {
+    group,
+    gunTip,
+    idleModel: null,
+    runForwardModel: null,
+    runLeftModel: null,
+    runRightModel: null,
+    runBackwardModel: null,
+    idleMixer: null,
+    runForwardMixer: null,
+    runLeftMixer: null,
+    runRightMixer: null,
+    runBackwardMixer: null
+  };
+
+  const textureLoader = new THREE.TextureLoader();
+
+  // Load the extracted high-definition textures once to save memory and avoid multiple downloads
+  const textures = {
+    diffuse1001: textureLoader.load("assets/textures/Ch15_1001_Diffuse.png"),
+    normal1001: textureLoader.load("assets/textures/Ch15_1001_Normal.png"),
+    specular1001: textureLoader.load("assets/textures/Ch15_1001_Specular.png"),
+    glossiness1001: textureLoader.load("assets/textures/Ch15_1001_Glossiness.png"),
+
+    diffuse1002: textureLoader.load("assets/textures/Ch15_1002_Diffuse.png"),
+    normal1002: textureLoader.load("assets/textures/Ch15_1002_Normal.png"),
+    specular1002: textureLoader.load("assets/textures/Ch15_1002_Specular.png"),
+    glossiness1002: textureLoader.load("assets/textures/Ch15_1002_Glossiness.png"),
+    emissive1002: textureLoader.load("assets/textures/Ch15_1002_Emissive.png")
+  };
+
+  // Configure color space for proper Gamma correction in Three.js 0.160.0
+  textures.diffuse1001.colorSpace = THREE.SRGBColorSpace;
+  textures.diffuse1002.colorSpace = THREE.SRGBColorSpace;
+
+  // Helper function to setup each loaded FBX model to reduce boilerplate
+  function setupModel(fbx, name, isInitiallyVisible = false) {
+    fbx.scale.setScalar(0.028);
+    fbx.position.set(0, 0, 0);
+    fbx.rotation.y = Math.PI; // Face camera forward direction
+    fbx.visible = isInitiallyVisible;
+
+    fbx.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+        if (child.material) {
+          const mats = Array.isArray(child.material) ? child.material : [child.material];
+          mats.forEach((m) => {
+            const matName = (m.name || "").toLowerCase();
+
+            // Ensure base color is pure white so that diffuse textures are rendered at full brightness
+            if (m.color) m.color.setHex(0xffffff);
+
+            // Map original high-definition textures to the respective body/head materials
+            if (matName.includes("body1") || matName.includes("1002")) {
+              // Set 1002 (Head, helmet, glowing visor, neck plating)
+              m.map = textures.diffuse1002;
+              m.normalMap = textures.normal1002;
+              m.normalScale = new THREE.Vector2(1.2, 1.2);
+              m.specularMap = textures.specular1002;
+              m.emissiveMap = textures.emissive1002;
+              m.emissive = new THREE.Color(0xffffff); // Use embedded emissive colors
+              m.emissiveIntensity = 2.5; // Brighter glowing visor/lights
+              m.metalness = 0.2; // Lower metalness to make it brighter
+              m.roughness = 0.4;
+            } else {
+              // Set 1001 (Body suit, combat armor plating, gloves, boots, equipment)
+              m.map = textures.diffuse1001;
+              m.normalMap = textures.normal1001;
+              m.normalScale = new THREE.Vector2(1.0, 1.0);
+              m.specularMap = textures.specular1001;
+              
+              // Enable a soft, subtle self-illumination on the body suit so it pops beautifully in the dark
+              m.emissiveMap = textures.diffuse1001;
+              m.emissive = new THREE.Color(0xffffff);
+              m.emissiveIntensity = 0.2; // Subtle 20% glow to keep the suit perfectly readable and bright
+              
+              m.metalness = 0.15; // Lower metalness makes the diffuse texture much brighter in dynamic shadows
+              m.roughness = 0.55;
+            }
+            m.needsUpdate = true;
+          });
+        }
+      }
+    });
+
+    group.add(fbx);
+
+    let mixer = null;
+    if (fbx.animations && fbx.animations.length > 0) {
+      mixer = new THREE.AnimationMixer(fbx);
+      const action = mixer.clipAction(fbx.animations[0]);
+      action.play();
+    }
+    return { model: fbx, mixer };
+  }
+
+  // ---- Load 3D FBX Character Models ----
   const manager = new THREE.LoadingManager();
 
   manager.onStart = () => {
-    showStatus("⏳ Loading character model...");
+    showStatus("⏳ Loading character models...");
   };
   manager.onProgress = (url, loaded, total) => {
     const pct = Math.round((loaded / total) * 100);
-    showStatus(`⏳ Loading character model... ${pct}%`);
+    showStatus(`⏳ Loading character models... ${pct}%`);
   };
   manager.onLoad = () => {
     showStatus("");
@@ -56,47 +154,69 @@ export function createPlayer(scene) {
   };
 
   const fbxLoader = new FBXLoader(manager);
+
+  // 1. Load Idle Model
   fbxLoader.load(
-    "assets/models/Ch49_nonPBR.fbx",
+    "assets/models/Rifle_Idle.fbx",
     (fbx) => {
-      // Scale: FBX is in cm, game units are metres-ish. 
-      // 170cm character → scale 0.028 ≈ 4.8 units tall (fits well in scene).
-      fbx.scale.setScalar(0.028);
-      fbx.position.set(0, 0, 0);
-      fbx.rotation.y = Math.PI; // face camera-forward direction
+      const { model, mixer } = setupModel(fbx, "idle", true);
+      player.idleModel = model;
+      player.idleMixer = mixer;
 
-      fbx.traverse((child) => {
-        if (child.isMesh) {
-          child.castShadow = true;
-          child.receiveShadow = true;
-          // Improve material quality
-          if (child.material) {
-            const mats = Array.isArray(child.material) ? child.material : [child.material];
-            mats.forEach((m) => {
-              m.metalness = 0.1;
-              m.roughness = 0.7;
-            });
-          }
-        }
-      });
-
-      group.add(fbx);
-
-      // Hide fallback primitives now that the model is loaded
+      // Hide fallback primitives now that at least one model is loaded
       torso.visible = false;
       head.visible = false;
       gun.visible = false;
 
       // Reposition gunTip to align with weapon in the right hand of the FBX rig.
-      // FBX scale 0.028: weapon barrel tip sits roughly at local (0.6, 3.5, -3.0)
       gunTip.position.set(0.6, 3.5, -3.0);
+    }
+  );
+
+  // 2. Load Run Forward Model
+  fbxLoader.load(
+    "assets/models/Rifle_Run.fbx",
+    (fbx) => {
+      const { model, mixer } = setupModel(fbx, "run_forward", false);
+      player.runForwardModel = model;
+      player.runForwardMixer = mixer;
+    }
+  );
+
+  // 3. Load Run Left Model
+  fbxLoader.load(
+    "assets/models/Run_Left.fbx",
+    (fbx) => {
+      const { model, mixer } = setupModel(fbx, "run_left", false);
+      player.runLeftModel = model;
+      player.runLeftMixer = mixer;
+    }
+  );
+
+  // 4. Load Run Right Model
+  fbxLoader.load(
+    "assets/models/Run_Right.fbx",
+    (fbx) => {
+      const { model, mixer } = setupModel(fbx, "run_right", false);
+      player.runRightModel = model;
+      player.runRightMixer = mixer;
+    }
+  );
+
+  // 5. Load Run Backward Model
+  fbxLoader.load(
+    "assets/models/Run_Backward.fbx",
+    (fbx) => {
+      const { model, mixer } = setupModel(fbx, "run_backward", false);
+      player.runBackwardModel = model;
+      player.runBackwardMixer = mixer;
     }
   );
 
   group.position.set(0, 0, 30);
   scene.add(group);
 
-  return { group, gunTip };
+  return player;
 }
 
 
@@ -123,10 +243,10 @@ export function createGameplay({ scene, player, targets, onScore, muzzleLight })
     const deltaY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
     rotation.yaw -= deltaX * 0.002;
     rotation.pitch -= deltaY * 0.002;
-    
+
     // Clamp pitch to prevent flipping
     rotation.pitch = THREE.MathUtils.clamp(rotation.pitch, -0.6, 0.6);
-    
+
     player.group.rotation.y = rotation.yaw;
   }
 
@@ -159,18 +279,18 @@ export function createGameplay({ scene, player, targets, onScore, muzzleLight })
     // Perform a raycast from camera center to find the target point in the scene
     const cameraPos = new THREE.Vector3();
     camera.getWorldPosition(cameraPos);
-    
+
     const cameraDir = new THREE.Vector3();
     camera.getWorldDirection(cameraDir);
-    
+
     const raycaster = new THREE.Raycaster();
     raycaster.set(cameraPos, cameraDir);
-    
+
     const intersects = raycaster.intersectObjects(scene.children, true);
-    
+
     // Find first intersection that is not part of the player character
     const validIntersects = intersects.filter(hit => !isChildOf(hit.object, player.group));
-    
+
     const targetPoint = new THREE.Vector3();
     if (validIntersects.length > 0) {
       targetPoint.copy(validIntersects[0].point);
@@ -178,7 +298,7 @@ export function createGameplay({ scene, player, targets, onScore, muzzleLight })
       // Default to a point 100 units in front of the camera
       targetPoint.copy(cameraPos).addScaledVector(cameraDir, 100);
     }
-    
+
     // Direction is from gunTip to the targetPoint
     const direction = new THREE.Vector3().subVectors(targetPoint, start).normalize();
 
@@ -191,6 +311,49 @@ export function createGameplay({ scene, player, targets, onScore, muzzleLight })
   }
 
   function update(delta) {
+    // Determine the active model and mixer based on movement inputs (strafe direction)
+    let activeModel = player.idleModel;
+    let activeMixer = player.idleMixer;
+
+    if (input.forward) {
+      activeModel = player.runForwardModel;
+      activeMixer = player.runForwardMixer;
+    } else if (input.back) {
+      activeModel = player.runBackwardModel;
+      activeMixer = player.runBackwardMixer;
+    } else if (input.left) {
+      activeModel = player.runLeftModel;
+      activeMixer = player.runLeftMixer;
+    } else if (input.right) {
+      activeModel = player.runRightModel;
+      activeMixer = player.runRightMixer;
+    }
+
+    // Update visibility for all 5 models to ensure only the active one is seen
+    const allModels = [
+      player.idleModel,
+      player.runForwardModel,
+      player.runLeftModel,
+      player.runRightModel,
+      player.runBackwardModel
+    ];
+
+    allModels.forEach((m) => {
+      if (m) {
+        m.visible = (m === activeModel);
+      }
+    });
+
+    // Update the active animation mixer
+    if (activeMixer) {
+      activeMixer.update(delta);
+    } else {
+      // Fallback
+      if (player.mixer) {
+        player.mixer.update(delta);
+      }
+    }
+
     updateMovement(delta);
     updateBullets(delta);
     updateTargets(delta);
@@ -288,6 +451,21 @@ export function createGameplay({ scene, player, targets, onScore, muzzleLight })
     rotation.pitch = 0;
     player.group.rotation.y = rotation.yaw;
     player.group.position.copy(initialPlayer.position);
+
+    // Reset visibility of all 5 models (only idleModel visible)
+    const allModels = [
+      player.idleModel,
+      player.runForwardModel,
+      player.runLeftModel,
+      player.runRightModel,
+      player.runBackwardModel
+    ];
+    allModels.forEach((m) => {
+      if (m) {
+        m.visible = (m === player.idleModel);
+        m.rotation.y = Math.PI;
+      }
+    });
   }
 
   return {
