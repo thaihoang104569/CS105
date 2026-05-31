@@ -1,5 +1,4 @@
 import * as THREE from "three";
-import { TeapotGeometry } from "https://unpkg.com/three@0.160.0/examples/jsm/geometries/TeapotGeometry.js";
 
 export function createEnvironment(scene) {
   const loader = new THREE.TextureLoader();
@@ -170,15 +169,9 @@ export function createEnvironment(scene) {
     animated.push(...target.animated);
   });
 
-  // Giant metallic teapot centerpiece
-  const teapot = new THREE.Mesh(
-    new TeapotGeometry(7, 12, true, true, true, false, true),
-    new THREE.MeshStandardMaterial({ color: 0x90a8e0, metalness: 0.6, roughness: 0.2 })
-  );
-  teapot.position.set(0, 4.4, 0);
-  teapot.castShadow = true;
-  teapot.receiveShadow = true;
-  scene.add(teapot);
+  const controlTower = createControlTower();
+  scene.add(controlTower.group);
+  animated.push(controlTower);
 
   // Lively Moving Object 1: Floating Security Drones
   for (let i = 0; i < 5; i++) {
@@ -237,6 +230,85 @@ export function createEnvironment(scene) {
     setFloorTexture: (mode) => setFloorTexture(ground, textures, mode),
     update: (delta, elapsed) => updateEnvironment(animated, delta, elapsed),
   };
+}
+
+function createControlTower() {
+  const group = new THREE.Group();
+
+  const baseMat = new THREE.MeshStandardMaterial({ color: 0x3b4a5e, metalness: 0.7, roughness: 0.25 });
+  const trimMat = new THREE.MeshStandardMaterial({ color: 0x5bd7ff, emissive: 0x2ab7ff, emissiveIntensity: 0.7 });
+  const glassMat = new THREE.MeshStandardMaterial({ color: 0x9ad7ff, transparent: true, opacity: 0.55, roughness: 0.1 });
+  const accentMat = new THREE.MeshStandardMaterial({ color: 0xfaa94b, emissive: 0xf08b2f, emissiveIntensity: 0.5 });
+
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(6, 7.5, 6, 24), baseMat);
+  base.position.y = 3;
+  base.castShadow = true;
+  base.receiveShadow = true;
+  group.add(base);
+
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(3.4, 4.2, 14, 20), baseMat);
+  shaft.position.y = 12;
+  shaft.castShadow = true;
+  group.add(shaft);
+
+  const deck = new THREE.Mesh(new THREE.CylinderGeometry(7, 7, 1.8, 24), trimMat);
+  deck.position.y = 20.2;
+  deck.castShadow = true;
+  group.add(deck);
+
+  const cabin = new THREE.Mesh(new THREE.CylinderGeometry(5.4, 5.4, 4.2, 24, 1, true), glassMat);
+  cabin.position.y = 23;
+  cabin.castShadow = true;
+  group.add(cabin);
+
+  const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 6, 12), baseMat);
+  antenna.position.y = 27.5;
+  group.add(antenna);
+
+  const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.7, 16, 12), trimMat);
+  beacon.position.y = 30.5;
+  group.add(beacon);
+
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(8.5, 0.3, 16, 64), trimMat);
+  ring.position.y = 18.4;
+  ring.rotation.x = Math.PI / 2;
+  group.add(ring);
+
+  const sidePlatform = new THREE.Mesh(new THREE.BoxGeometry(6, 0.8, 4), baseMat);
+  sidePlatform.position.set(7, 16.5, 1);
+  sidePlatform.rotation.y = 0.35;
+  sidePlatform.castShadow = true;
+  group.add(sidePlatform);
+
+  const railing = new THREE.Mesh(new THREE.TorusGeometry(2.6, 0.12, 12, 32), trimMat);
+  railing.position.set(7, 17.1, 1);
+  railing.rotation.x = Math.PI / 2;
+  group.add(railing);
+
+  const sensorArm = new THREE.Mesh(new THREE.BoxGeometry(1.2, 6, 1.2), baseMat);
+  sensorArm.position.set(-6.5, 21.5, -2.5);
+  sensorArm.rotation.z = 0.25;
+  sensorArm.castShadow = true;
+  group.add(sensorArm);
+
+  const sensorHead = new THREE.Mesh(new THREE.SphereGeometry(1.1, 16, 12), accentMat);
+  sensorHead.position.set(-6.5, 24.8, -2.5);
+  group.add(sensorHead);
+
+  const dish = new THREE.Mesh(new THREE.ConeGeometry(2.6, 1.8, 20), trimMat);
+  dish.position.set(4.5, 26.2, -4);
+  dish.rotation.x = Math.PI / 2;
+  dish.rotation.z = 0.35;
+  group.add(dish);
+
+  const dishStem = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 2.4, 10), baseMat);
+  dishStem.position.set(4.5, 25, -4);
+  dishStem.rotation.z = 0.35;
+  group.add(dishStem);
+
+  group.position.set(0, 0, 0);
+
+  return { type: "controlTower", group };
 }
 
 // Helper to create an atmospheric, animated Drone
@@ -400,6 +472,9 @@ function updateEnvironment(animated, delta, elapsed) {
       item.group.position.lerpVectors(item.from, item.to, progress);
       // Spin the robot body slowly
       item.group.rotation.y += delta * 1.2;
+    }
+    if (item.type === "controlTower") {
+      item.group.rotation.y += delta * 0.35;
     }
   });
 }

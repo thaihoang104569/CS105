@@ -226,6 +226,8 @@ export function createGameplay({ scene, player, targets, onScore, muzzleLight })
   const rotation = { yaw: 0, pitch: 0 };
   let eliminated = 0;
   let canShoot = true;
+  let isFiring = false;
+  let fireCooldown = 0;
   const initialPlayer = {
     position: player.group.position.clone(),
     rotationY: player.group.rotation.y,
@@ -259,24 +261,26 @@ export function createGameplay({ scene, player, targets, onScore, muzzleLight })
     return false;
   }
 
-  function onShoot(camera, useCameraOrigin) {
+  function spawnBullet(camera, useCameraOrigin) {
     if (!canShoot) return;
     if (!camera) return;
     canShoot = false;
-    setTimeout(() => (canShoot = true), 180);
+    setTimeout(() => (canShoot = true), 70);
 
     const bullet = new THREE.Mesh(
-      new THREE.SphereGeometry(0.2, 12, 10),
-      new THREE.MeshStandardMaterial({ color: 0xff3b3b, emissive: 0x8f1a1a, emissiveIntensity: 0.6 })
+      new THREE.CylinderGeometry(0.08, 0.08, 1.2, 12),
+      new THREE.MeshStandardMaterial({ color: 0xffd452, emissive: 0xffc24a, emissiveIntensity: 0.8 })
     );
     bullet.castShadow = true;
 
-    // Bullet starts at the character's gunTip
     const start = new THREE.Vector3();
-    player.gunTip.getWorldPosition(start);
+    if (useCameraOrigin) {
+      camera.getWorldPosition(start);
+    } else {
+      player.gunTip.getWorldPosition(start);
+    }
     bullet.position.copy(start);
 
-    // Perform a raycast from camera center to find the target point in the scene
     const cameraPos = new THREE.Vector3();
     camera.getWorldPosition(cameraPos);
 
@@ -287,22 +291,19 @@ export function createGameplay({ scene, player, targets, onScore, muzzleLight })
     raycaster.set(cameraPos, cameraDir);
 
     const intersects = raycaster.intersectObjects(scene.children, true);
-
-    // Find first intersection that is not part of the player character
-    const validIntersects = intersects.filter(hit => !isChildOf(hit.object, player.group));
+    const validIntersects = intersects.filter((hit) => !isChildOf(hit.object, player.group));
 
     const targetPoint = new THREE.Vector3();
     if (validIntersects.length > 0) {
       targetPoint.copy(validIntersects[0].point);
     } else {
-      // Default to a point 100 units in front of the camera
-      targetPoint.copy(cameraPos).addScaledVector(cameraDir, 100);
+      targetPoint.copy(cameraPos).addScaledVector(cameraDir, 140);
     }
 
-    // Direction is from gunTip to the targetPoint
     const direction = new THREE.Vector3().subVectors(targetPoint, start).normalize();
+    bullet.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
 
-    bullets.push({ mesh: bullet, direction, life: 2.5 });
+    bullets.push({ mesh: bullet, direction, life: 2.2 });
     scene.add(bullet);
 
     if (muzzleLight) {
@@ -310,7 +311,16 @@ export function createGameplay({ scene, player, targets, onScore, muzzleLight })
     }
   }
 
-  function update(delta) {
+  function onShoot(camera, useCameraOrigin) {
+    spawnBullet(camera, useCameraOrigin);
+  }
+
+  function update(delta, camera, useCameraOrigin) {
+    if (isFiring && fireCooldown <= 0) {
+      spawnBullet(camera, useCameraOrigin);
+      fireCooldown = 0.08;
+    }
+    fireCooldown = Math.max(0, fireCooldown - delta);
     // Determine the active model and mixer based on movement inputs (strafe direction)
     let activeModel = player.idleModel;
     let activeMixer = player.idleMixer;
@@ -359,6 +369,10 @@ export function createGameplay({ scene, player, targets, onScore, muzzleLight })
     updateTargets(delta);
   }
 
+  function setFiring(state) {
+    isFiring = state;
+  }
+
   function updateMovement(delta) {
     const speed = 12;
     const move = new THREE.Vector3();
@@ -378,7 +392,7 @@ export function createGameplay({ scene, player, targets, onScore, muzzleLight })
 
   function updateBullets(delta) {
     bullets.forEach((bullet) => {
-      bullet.mesh.position.addScaledVector(bullet.direction, 40 * delta);
+      bullet.mesh.position.addScaledVector(bullet.direction, 60 * delta);
       bullet.life -= delta;
     });
 
@@ -474,6 +488,7 @@ export function createGameplay({ scene, player, targets, onScore, muzzleLight })
     onMouseMove,
     onShoot,
     update,
+    setFiring,
     reset: resetGame,
     getPitch: () => rotation.pitch,
   };

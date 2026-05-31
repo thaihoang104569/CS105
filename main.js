@@ -159,8 +159,13 @@ canvas.addEventListener("mousedown", () => {
   if (cameraState.activeIndex === 1) {
     const activeCamera = getActiveCamera(cameraState);
     gameplay.onShoot(activeCamera, false);
+    gameplay.setFiring(true);
     flashMuzzleLight(lighting.muzzleFlash);
   }
+});
+
+window.addEventListener("mouseup", () => {
+  gameplay.setFiring(false);
 });
 
 window.addEventListener("mousemove", (event) => {
@@ -196,7 +201,9 @@ function animate() {
   const elapsed = clock.getElapsedTime();
 
   environment.update(delta, elapsed);
-  gameplay.update(delta);
+  const activeCamera = getActiveCamera(cameraState);
+  const useCameraOrigin = false;
+  gameplay.update(delta, activeCamera, useCameraOrigin);
   updateThirdPersonCamera(cameraState, player.group, gameplay.getPitch());
   updatePanoramicControls(delta, getActiveCamera(cameraState));
   fadeMuzzleLight(lighting.muzzleFlash, delta);
