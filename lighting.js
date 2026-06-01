@@ -76,7 +76,7 @@ export function createLighting(scene) {
   projGroup.lookAt(0, 0, 0);
 
   // Point Light (Fill)
-  const fillPoint = new THREE.PointLight(0xd9f0ff, 1.1, 160, 1.5);
+  const fillPoint = new THREE.PointLight(0xd9f0ff, 2.4, 160, 1.5);
   fillPoint.position.set(0, 25, 0);
   scene.add(fillPoint);
 

@@ -108,31 +108,7 @@ export function createEnvironment(scene) {
   stripeE.position.set(118.9, 45, 0);
   scene.add(stripeE);
 
-  // Volumetric Sci-fi Light Cones under ceiling lights
-  const coneGeo = new THREE.CylinderGeometry(6, 18, 50, 16, 1, true);
-  const coneMat = new THREE.MeshBasicMaterial({
-    color: 0xd9f0ff,
-    transparent: true,
-    opacity: 0.05,
-    blending: THREE.AdditiveBlending,
-    side: THREE.DoubleSide,
-    depthWrite: false
-  });
-  const panelCoords = [
-    [60, 49.8, 60],
-    [-60, 49.8, 60],
-    [60, 49.8, -60],
-    [-60, 49.8, -60],
-    [0, 49.8, 90],
-    [0, 49.8, -90],
-    [90, 49.8, 0],
-    [-90, 49.8, 0]
-  ];
-  panelCoords.forEach(([x, y, z]) => {
-    const lightCone = new THREE.Mesh(coneGeo, coneMat);
-    lightCone.position.set(x, 25, z);
-    scene.add(lightCone);
-  });
+  // Volumetric light cones removed per request.
 
   const targets = [];
   const animated = [];
