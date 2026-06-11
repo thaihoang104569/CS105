@@ -70,6 +70,8 @@ const cameraInput = {
   pitch: -0.35,
 };
 
+let isPaused = false;
+
 function readCameraUI() {
   return {
     x: Number(ui.camX.value),
@@ -127,6 +129,14 @@ ui.restartButton.addEventListener("click", () => {
 });
 
 window.addEventListener("keydown", (event) => {
+  if (event.code === "KeyP") {
+    isPaused = !isPaused;
+    if (isPaused) {
+      gameplay.setFiring(false);
+    } else {
+      clock.getDelta();
+    }
+  }
   if (event.code === "Digit1") {
     setActiveCamera(cameraState, 0);
     updateActiveCameraFromUI(cameraState, readCameraUI());
@@ -156,6 +166,7 @@ canvas.addEventListener("mousedown", () => {
   if (document.pointerLockElement !== canvas) {
     canvas.requestPointerLock();
   }
+  if (isPaused) return;
   if (cameraState.activeIndex === 1) {
     const activeCamera = getActiveCamera(cameraState);
     gameplay.onShoot(activeCamera, false);
@@ -200,13 +211,17 @@ function animate() {
   const delta = clock.getDelta();
   const elapsed = clock.getElapsedTime();
 
-  environment.update(delta, elapsed);
+  if (!isPaused) {
+    environment.update(delta, elapsed);
+  }
   const activeCamera = getActiveCamera(cameraState);
   const useCameraOrigin = false;
-  gameplay.update(delta, activeCamera, useCameraOrigin);
+  if (!isPaused) {
+    gameplay.update(delta, activeCamera, useCameraOrigin);
+    fadeMuzzleLight(lighting.muzzleFlash, delta);
+  }
   updateThirdPersonCamera(cameraState, player.group, gameplay.getPitch());
   updatePanoramicControls(delta, getActiveCamera(cameraState));
-  fadeMuzzleLight(lighting.muzzleFlash, delta);
 
   renderer.render(scene, getActiveCamera(cameraState));
   requestAnimationFrame(animate);
