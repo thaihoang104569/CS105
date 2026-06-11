@@ -9,7 +9,7 @@
 <h1 align="center"><b>Đồ họa máy tính</b></h1>
 <h2 align="center"><b>Sci-Fi Shooting Range 3D</b></h2>
 
-## THÀNH VIÊN NHÓM 1
+## THÀNH VIÊN NHÓM
 
 | STT | MSSV     | Họ và Tên         |
 | --- | -------- | ----------------- |
@@ -177,16 +177,53 @@ gamebansung/
 
 ## HƯỚNG DẪN CHẠY DỰ ÁN
 
-> Dự án không yêu cầu build. Chỉ cần chạy thông qua một web server cục bộ.
+> Dự án không yêu cầu build. Chỉ cần chuẩn bị tài nguyên và chạy thông qua một web server cục bộ.
 
-### Cách 1: Visual Studio Code + Live Server
+### Bước 1: Tải mô hình nhân vật (FBX)
+
+Do dung lượng lớn nên các file mô hình nhân vật FBX không được lưu trực tiếp trong repository.
+
+1. Truy cập thư mục Google Drive:
+
+   https://drive.google.com/drive/u/0/folders/162QQ3TBmSIooeRTdNzsmWf2eKg07p-W6
+
+2. Tải toàn bộ các file FBX trong thư mục.
+
+3. Trong thư mục dự án, tạo cấu trúc:
+
+   ```text
+   assets/
+   └── models/
+   ```
+
+4. Sao chép toàn bộ các file FBX đã tải vào thư mục `assets/models/`.
+
+Ví dụ:
+
+```text
+assets/
+└── models/
+    ├── Rifle_Idle.fbx
+    ├── Rifle_Run.fbx
+    ├── Run_Left.fbx
+    ├── Run_Right.fbx
+    └── Run_Backward.fbx
+```
+
+> **Lưu ý:** Nếu không thực hiện bước này, trò chơi vẫn chạy bình thường nhưng nhân vật sẽ được hiển thị bằng mô hình hình khối (placeholder) thay vì mô hình nhân vật đầy đủ.
+
+---
+
+### Bước 2: Chạy web server
+
+#### Cách 1: Visual Studio Code + Live Server
 
 1. Mở thư mục dự án bằng VS Code.
 2. Cài đặt extension **Live Server**.
-3. Mở `index.html`.
+3. Mở file `index.html`.
 4. Chọn **Open with Live Server**.
 
-### Cách 2: Python
+#### Cách 2: Python
 
 ```bash
 cd gamebansung
@@ -199,7 +236,7 @@ Sau đó truy cập:
 http://localhost:8000
 ```
 
-### Cách 3: Node.js
+#### Cách 3: Node.js
 
 ```bash
 npx serve
@@ -211,43 +248,45 @@ hoặc
 npx http-server
 ```
 
-Truy cập địa chỉ được hiển thị trên terminal.
+Sau đó truy cập địa chỉ được hiển thị trên terminal.
 
 ---
 
-## HƯỚNG DẪN CHƠI
+### Bước 3: Chờ tải tài nguyên
 
-### Điều khiển
+- Khi trò chơi khởi động, hệ thống sẽ tải các texture và mô hình FBX.
+- Quá trình tải có thể mất vài giây tùy cấu hình máy và tốc độ ổ cứng.
+- Sau khi hoàn tất, nhân vật và toàn bộ môi trường 3D sẽ xuất hiện trong màn chơi.
 
-| Phím       | Chức năng           |
-| ---------- | ------------------- |
-| W          | Di chuyển tiến      |
-| S          | Di chuyển lùi       |
-| A          | Di chuyển trái      |
-| D          | Di chuyển phải      |
-| Chuột      | Ngắm                |
-| Chuột trái | Bắn                 |
-| 1          | Camera Panoramic    |
-| 2          | Camera Third-Person |
-| P          | Tạm dừng/Tiếp tục   |
+---
 
-### Các bước trải nghiệm
+### Bước 4: Trải nghiệm trò chơi
+
+| Phím | Chức năng |
+|--------|------------|
+| W | Di chuyển tiến |
+| S | Di chuyển lùi |
+| A | Di chuyển trái |
+| D | Di chuyển phải |
+| Chuột | Ngắm |
+| Chuột trái | Bắn |
+| 1 | Camera Panoramic |
+| 2 | Camera Third-Person |
+| P | Tạm dừng/Tiếp tục |
 
 1. Chọn chế độ camera bằng phím **1** hoặc **2**.
 2. Click vào màn hình để kích hoạt Pointer Lock.
-3. Sử dụng WASD để di chuyển.
-4. Dùng chuột để ngắm.
-5. Giữ chuột trái để bắn mục tiêu.
-6. Thay đổi texture và ánh sáng bằng bảng điều khiển.
+3. Di chuyển bằng WASD.
+4. Sử dụng chuột để ngắm mục tiêu.
+5. Giữ chuột trái để bắn.
+6. Thay đổi texture sàn và ánh sáng bằng bảng điều khiển bên trái.
 
 ---
 
-## LƯU Ý
+### Lưu ý
 
-* Không mở trực tiếp bằng `file://`.
-* Cần chạy thông qua web server để tránh lỗi CORS.
-* Kiểm tra lại thư mục `assets/models/` và `assets/textures/` nếu xảy ra lỗi tải tài nguyên.
-* Dự án được tối ưu cho máy tính sử dụng chuột và bàn phím.
-
----
+- Không mở trực tiếp bằng `file://`.
+- Luôn chạy thông qua web server để tránh lỗi CORS.
+- Nếu mô hình nhân vật không xuất hiện, hãy kiểm tra lại thư mục `assets/models/` và các file FBX.
+- Dự án được tối ưu cho máy tính sử dụng chuột và bàn phím.
 
